@@ -501,7 +501,7 @@
     const SUPABASE_URL = 'https://kyrdzjkjkzrwfepnnqzb.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5cmR6amtqa3pyd2ZlcG5ucXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzU0NTgsImV4cCI6MjA4NTk1MTQ1OH0.C5KWamfX-Rkq9_NW4jKp_UjuFpEzZ-_GW-0u1C-iShQ';
     
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // State
     let schools = [];
@@ -542,7 +542,7 @@
 
     // Load Data
     async function loadSchools() {
-      const { data, error } = await supabase.from('schools_crm').select('*').order('created_at', { ascending: false });
+      const { data, error } = await db.from('schools_crm').select('*').order('created_at', { ascending: false });
       if (error) { console.error(error); return; }
       schools = data || [];
       renderCrmStats();
@@ -550,14 +550,14 @@
     }
 
     async function loadTasks() {
-      const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
+      const { data, error } = await db.from('tasks').select('*').order('created_at', { ascending: false });
       if (error) { console.error(error); return; }
       tasks = data || [];
       renderTasks();
     }
 
     async function loadProjects() {
-      const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+      const { data, error } = await db.from('projects').select('*').order('created_at', { ascending: false });
       if (error) { console.error(error); return; }
       projects = data || [];
       renderProjects();
@@ -669,7 +669,7 @@
       const currentIndex = statusOrder.indexOf(currentStatus);
       const newStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
       
-      const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', id);
+      const { error } = await db.from('tasks').update({ status: newStatus }).eq('id', id);
       if (!error) loadTasks();
     }
 
@@ -689,7 +689,7 @@
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
       
-      const { error } = await supabase.from('schools_crm').insert([data]);
+      const { error } = await db.from('schools_crm').insert([data]);
       if (!error) {
         closeModal('school');
         loadSchools();
@@ -701,7 +701,7 @@
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
       
-      const { error } = await supabase.from('tasks').insert([data]);
+      const { error } = await db.from('tasks').insert([data]);
       if (!error) {
         closeModal('task');
         loadTasks();
@@ -713,7 +713,7 @@
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
       
-      const { error } = await supabase.from('projects').insert([data]);
+      const { error } = await db.from('projects').insert([data]);
       if (!error) {
         closeModal('project');
         loadProjects();
