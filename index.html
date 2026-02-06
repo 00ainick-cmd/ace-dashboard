@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ACE Command Center</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --border: #2a2a2a;
+      --text: #e0e0e0;
+      --text-dim: #808080;
+      --accent: #00ff88;
+      --hot: #ff4444;
+      --warm: #ffaa00;
+      --cold: #4488ff;
+      --committed: #00ff88;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    
+    nav {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .tab {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    
+    .tab:hover { border-color: var(--text-dim); }
+    .tab.active { 
+      background: var(--accent); 
+      color: var(--bg); 
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+    
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    
+    .view { display: none; }
+    .view.active { display: block; }
+    
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .filters {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    
+    .filter {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+    
+    .filter.active { background: var(--border); color: var(--text); }
+    
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    
+    .card:hover { border-color: var(--text-dim); }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.5rem;
+    }
+    
+    .card-title {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+    
+    .badge {
+      font-size: 0.625rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    
+    .badge.hot { background: var(--hot); color: white; }
+    .badge.warm { background: var(--warm); color: black; }
+    .badge.cold { background: var(--cold); color: white; }
+    .badge.committed { background: var(--committed); color: black; }
+    
+    .card-meta {
+      font-size: 0.875rem;
+      color: var(--text-dim);
+    }
+    
+    .card-details {
+      display: none;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    
+    .card.expanded .card-details { display: block; }
+    
+    .detail-section {
+      margin-bottom: 1rem;
+    }
+    
+    .detail-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+    
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .contact {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem;
+      background: var(--bg);
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+    
+    .contact-name { font-weight: 500; }
+    .contact-role { color: var(--text-dim); font-size: 0.75rem; }
+    .contact-email { color: var(--accent); font-size: 0.75rem; }
+    
+    .notes {
+      font-size: 0.875rem;
+      color: var(--text-dim);
+      white-space: pre-wrap;
+    }
+    
+    .task-status {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+    }
+    
+    .task-status.inbox { background: var(--cold); }
+    .task-status.next_action { background: var(--accent); }
+    .task-status.waiting { background: var(--warm); }
+    .task-status.done { background: var(--text-dim); }
+    
+    .btn {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+    
+    .btn:hover { opacity: 0.9; }
+    
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal.active { display: flex; }
+    
+    .modal-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      width: 90%;
+      max-width: 500px;
+    }
+    
+    .modal h3 {
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+    
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+    
+    .form-group textarea { min-height: 80px; resize: vertical; }
+    
+    .form-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-top: 1rem;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-dim);
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 600px) {
+      .header-content { flex-direction: column; gap: 1rem; }
+      nav { width: 100%; justify-content: center; }
+      .section-header { flex-direction: column; gap: 0.5rem; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <h1>⚡ ACE Command Center</h1>
+      <nav>
+        <button class="tab active" data-view="crm">CRM</button>
+        <button class="tab" data-view="tasks">Tasks</button>
+        <button class="tab" data-view="projects">Projects</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- CRM View -->
+    <div id="crm" class="view active">
+      <div class="stats" id="crm-stats"></div>
+      <div class="section-header">
+        <h2>Schools Pipeline</h2>
+        <div class="filters" id="crm-filters">
+          <button class="filter active" data-filter="all">All</button>
+          <button class="filter" data-filter="committed">Committed</button>
+          <button class="filter" data-filter="hot">Hot</button>
+          <button class="filter" data-filter="warm">Warm</button>
+          <button class="filter" data-filter="cold">Cold</button>
+        </div>
+      </div>
+      <div id="schools-list"></div>
+      <button class="btn" onclick="openModal('school')">+ Add School</button>
+    </div>
+
+    <!-- Tasks View -->
+    <div id="tasks" class="view">
+      <div class="section-header">
+        <h2>Task Inbox</h2>
+        <div class="filters" id="task-filters">
+          <button class="filter active" data-filter="all">All</button>
+          <button class="filter" data-filter="inbox">Inbox</button>
+          <button class="filter" data-filter="next_action">Next</button>
+          <button class="filter" data-filter="waiting">Waiting</button>
+          <button class="filter" data-filter="done">Done</button>
+        </div>
+      </div>
+      <div id="tasks-list"></div>
+      <button class="btn" onclick="openModal('task')">+ Add Task</button>
+    </div>
+
+    <!-- Projects View -->
+    <div id="projects" class="view">
+      <div class="section-header">
+        <h2>Active Projects</h2>
+      </div>
+      <div id="projects-list"></div>
+      <button class="btn" onclick="openModal('project')">+ Add Project</button>
+    </div>
+  </main>
+
+  <!-- Add School Modal -->
+  <div id="school-modal" class="modal">
+    <div class="modal-content">
+      <h3>Add School</h3>
+      <form id="school-form">
+        <div class="form-group">
+          <label>School Name</label>
+          <input type="text" name="school_name" required>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select name="school_type">
+            <option value="High School / CTE Center">High School / CTE</option>
+            <option value="Community College">Community College</option>
+            <option value="Part 147">Part 147</option>
+            <option value="University">University</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input type="text" name="location_city">
+        </div>
+        <div class="form-group">
+          <label>State</label>
+          <input type="text" name="location_state" maxlength="2">
+        </div>
+        <div class="form-group">
+          <label>Interest Level</label>
+          <select name="interest_level">
+            <option value="cold">Cold</option>
+            <option value="warm">Warm</option>
+            <option value="hot">Hot</option>
+            <option value="committed">Committed</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea name="buying_process_notes"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('school')">Cancel</button>
+          <button type="submit" class="btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Task Modal -->
+  <div id="task-modal" class="modal">
+    <div class="modal-content">
+      <h3>Add Task</h3>
+      <form id="task-form">
+        <div class="form-group">
+          <label>Task Title</label>
+          <input type="text" name="title" required>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea name="description"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select name="status">
+            <option value="inbox">Inbox</option>
+            <option value="next_action">Next Action</option>
+            <option value="waiting">Waiting</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="someday">Someday</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('task')">Cancel</button>
+          <button type="submit" class="btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Project Modal -->
+  <div id="project-modal" class="modal">
+    <div class="modal-content">
+      <h3>Add Project</h3>
+      <form id="project-form">
+        <div class="form-group">
+          <label>Project Name</label>
+          <input type="text" name="name" required>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea name="description"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('project')">Cancel</button>
+          <button type="submit" class="btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Supabase Setup
+    const SUPABASE_URL = 'https://kyrdzjkjkzrwfepnnqzb.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5cmR6amtqa3pyd2ZlcG5ucXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzU0NTgsImV4cCI6MjA4NTk1MTQ1OH0.C5KWamfX-Rkq9_NW4jKp_UjuFpEzZ-_GW-0u1C-iShQ';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // State
+    let schools = [];
+    let tasks = [];
+    let projects = [];
+    let currentCrmFilter = 'all';
+    let currentTaskFilter = 'all';
+
+    // Navigation
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.view).classList.add('active');
+      });
+    });
+
+    // CRM Filters
+    document.getElementById('crm-filters').addEventListener('click', (e) => {
+      if (e.target.classList.contains('filter')) {
+        document.querySelectorAll('#crm-filters .filter').forEach(f => f.classList.remove('active'));
+        e.target.classList.add('active');
+        currentCrmFilter = e.target.dataset.filter;
+        renderSchools();
+      }
+    });
+
+    // Task Filters
+    document.getElementById('task-filters').addEventListener('click', (e) => {
+      if (e.target.classList.contains('filter')) {
+        document.querySelectorAll('#task-filters .filter').forEach(f => f.classList.remove('active'));
+        e.target.classList.add('active');
+        currentTaskFilter = e.target.dataset.filter;
+        renderTasks();
+      }
+    });
+
+    // Load Data
+    async function loadSchools() {
+      const { data, error } = await supabase.from('schools_crm').select('*').order('created_at', { ascending: false });
+      if (error) { console.error(error); return; }
+      schools = data || [];
+      renderCrmStats();
+      renderSchools();
+    }
+
+    async function loadTasks() {
+      const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
+      if (error) { console.error(error); return; }
+      tasks = data || [];
+      renderTasks();
+    }
+
+    async function loadProjects() {
+      const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+      if (error) { console.error(error); return; }
+      projects = data || [];
+      renderProjects();
+    }
+
+    // Render Functions
+    function renderCrmStats() {
+      const stats = {
+        total: schools.length,
+        committed: schools.filter(s => s.interest_level === 'committed').length,
+        hot: schools.filter(s => s.interest_level === 'hot').length,
+        warm: schools.filter(s => s.interest_level === 'warm').length,
+      };
+      document.getElementById('crm-stats').innerHTML = `
+        <div class="stat"><div class="stat-value">${stats.total}</div><div class="stat-label">Total Schools</div></div>
+        <div class="stat"><div class="stat-value">${stats.committed}</div><div class="stat-label">Committed</div></div>
+        <div class="stat"><div class="stat-value">${stats.hot}</div><div class="stat-label">Hot Leads</div></div>
+        <div class="stat"><div class="stat-value">${stats.warm}</div><div class="stat-label">Warm</div></div>
+      `;
+    }
+
+    function renderSchools() {
+      const filtered = currentCrmFilter === 'all' ? schools : schools.filter(s => s.interest_level === currentCrmFilter);
+      if (filtered.length === 0) {
+        document.getElementById('schools-list').innerHTML = '<div class="empty-state">No schools found</div>';
+        return;
+      }
+      document.getElementById('schools-list').innerHTML = filtered.map(school => {
+        const contacts = school.contact_info?.contacts || [];
+        return `
+          <div class="card" onclick="this.classList.toggle('expanded')">
+            <div class="card-header">
+              <div class="card-title">${school.school_name}</div>
+              <span class="badge ${school.interest_level}">${school.interest_level}</span>
+            </div>
+            <div class="card-meta">
+              ${school.location_city ? school.location_city + ', ' : ''}${school.location_state || ''}
+              ${school.school_type ? ' · ' + school.school_type : ''}
+              ${school.is_part_147 ? ' · Part 147' : ''}
+            </div>
+            <div class="card-details">
+              ${contacts.length > 0 ? `
+                <div class="detail-section">
+                  <div class="detail-label">Contacts</div>
+                  <div class="contact-list">
+                    ${contacts.map(c => `
+                      <div class="contact">
+                        <div>
+                          <div class="contact-name">${c.name}</div>
+                          <div class="contact-role">${c.role || ''}</div>
+                        </div>
+                        ${c.email ? `<div class="contact-email">${c.email}</div>` : ''}
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+              ${school.buying_process_notes ? `
+                <div class="detail-section">
+                  <div class="detail-label">Notes</div>
+                  <div class="notes">${school.buying_process_notes}</div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderTasks() {
+      const filtered = currentTaskFilter === 'all' ? tasks : tasks.filter(t => t.status === currentTaskFilter);
+      if (filtered.length === 0) {
+        document.getElementById('tasks-list').innerHTML = '<div class="empty-state">No tasks found</div>';
+        return;
+      }
+      document.getElementById('tasks-list').innerHTML = filtered.map(task => `
+        <div class="card" onclick="toggleTaskStatus('${task.id}', '${task.status}')">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="task-status ${task.status}"></span>
+              ${task.title}
+            </div>
+            <span class="badge" style="background: var(--border); color: var(--text);">${task.status.replace('_', ' ')}</span>
+          </div>
+          ${task.description ? `<div class="card-meta">${task.description}</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function renderProjects() {
+      if (projects.length === 0) {
+        document.getElementById('projects-list').innerHTML = '<div class="empty-state">No projects yet</div>';
+        return;
+      }
+      document.getElementById('projects-list').innerHTML = projects.map(project => `
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">${project.name}</div>
+            <span class="badge" style="background: var(--${project.status === 'active' ? 'accent' : 'border'}); color: ${project.status === 'active' ? 'black' : 'var(--text)'};">${project.status}</span>
+          </div>
+          ${project.description ? `<div class="card-meta">${project.description}</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    // Task Status Toggle
+    async function toggleTaskStatus(id, currentStatus) {
+      const statusOrder = ['inbox', 'next_action', 'waiting', 'done'];
+      const currentIndex = statusOrder.indexOf(currentStatus);
+      const newStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
+      
+      const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', id);
+      if (!error) loadTasks();
+    }
+
+    // Modals
+    function openModal(type) {
+      document.getElementById(`${type}-modal`).classList.add('active');
+    }
+
+    function closeModal(type) {
+      document.getElementById(`${type}-modal`).classList.remove('active');
+      document.getElementById(`${type}-form`).reset();
+    }
+
+    // Form Submissions
+    document.getElementById('school-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      
+      const { error } = await supabase.from('schools_crm').insert([data]);
+      if (!error) {
+        closeModal('school');
+        loadSchools();
+      }
+    });
+
+    document.getElementById('task-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      
+      const { error } = await supabase.from('tasks').insert([data]);
+      if (!error) {
+        closeModal('task');
+        loadTasks();
+      }
+    });
+
+    document.getElementById('project-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      
+      const { error } = await supabase.from('projects').insert([data]);
+      if (!error) {
+        closeModal('project');
+        loadProjects();
+      }
+    });
+
+    // Close modal on backdrop click
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.remove('active');
+        }
+      });
+    });
+
+    // Initialize
+    loadSchools();
+    loadTasks();
+    loadProjects();
+  </script>
+</body>
+</html>
